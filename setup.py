@@ -7,7 +7,7 @@ from os import path
 See https://github.com/icecooly/Mysql2docx
 """
 
-VERSION = '1.5'
+VERSION = '1.6'
 
 DESCRIPTION = (
     '自动生成数据库设计文档'

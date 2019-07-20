@@ -58,14 +58,16 @@ class Mysql2docx(object):
         cursor.close()
         return columns
 
-    def do(self,dbHost, dbUser, dbPassword, dbName, dbPort,doc='数据库设计文档.docx'):
+    @staticmethod
+    def do(dbHost, dbUser, dbPassword, dbName, dbPort,doc='数据库设计文档.docx'):
         print("dbHost:%s,dbUser:%s,dbPassword:%s,dbName:%s,dbPort:%d" % (dbHost, dbUser, dbPassword, dbName, dbPort))
-        self.dbName=dbName
+        instance=Mysql2docx()
+        instance.dbName=dbName
         db = pymysql.connect(dbHost, dbUser, dbPassword, dbName, dbPort, charset="utf8")
-        tables = self.getTables(db);
+        tables = instance.getTables(db);
         for table in tables:
             tableName = table.name
-            table.columns = self.getColumns(db, tableName)
+            table.columns = instance.getColumns(db, tableName)
 
         document = Document()
         p = document.add_paragraph()
@@ -77,7 +79,6 @@ class Mysql2docx(object):
         for table in tables:
             print("table:%s" % table)
             document.add_heading("表%s[%s]" % (table.name, table.comment), 2)
-            print("len(table.columns) %d" % len(table.columns))
             t = document.add_table(rows=len(table.columns) + 1, cols=5)
             cells = t.rows[0].cells
             cells[0].text = '字段名'
