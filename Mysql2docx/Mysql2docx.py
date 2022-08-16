@@ -63,7 +63,8 @@ class Mysql2docx(object):
         print("dbHost:%s,dbUser:%s,dbPassword:%s,dbName:%s,dbPort:%d" % (dbHost, dbUser, dbPassword, dbName, dbPort))
         instance=Mysql2docx()
         instance.dbName=dbName
-        db = pymysql.connect(dbHost, dbUser, dbPassword, dbName, dbPort, charset="utf8")
+        # db = pymysql.connect(dbHost, dbUser, dbPassword, dbName, dbPort, charset="utf8")
+        db = pymysql.connect(host=dbHost, user=dbUser, password=dbPassword, database=dbName, port=dbPort, charset="utf8")
         tables = instance.getTables(db);
         for table in tables:
             tableName = table.name
