@@ -2,12 +2,16 @@
 #-*-coding:utf-8-*-
 
 import json
-from docx import Document
-from docx.shared import Pt
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+
 import pymysql
-from . import Table
+from docx import Document
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
+from docx.oxml.ns import qn
+from docx.shared import Pt
+from docx.shared import RGBColor
+
 from . import Column
+from . import Table
 
 __author__ = 'skydu'
 
@@ -43,9 +47,10 @@ class Mysql2docx(object):
         sql = "SELECT  " \
               "COLUMN_NAME 列名,  " \
               "COLUMN_TYPE 数据类型,  " \
-              "IS_NULLABLE 是否为空,    " \
+              "IF(IS_NULLABLE = 'NO', '√', '') 是否为空,    " \
               "COLUMN_DEFAULT 默认值,    " \
-              "COLUMN_COMMENT 备注   " \
+              "if(lower(COLUMN_NAME) = 'id', 'id', COLUMN_COMMENT) 备注  , " \
+              "IF(COLUMN_KEY = 'PRI', '√', '') 主键 "\
               "FROM  INFORMATION_SCHEMA.COLUMNS  " \
               "where  table_schema ='%s'  AND   table_name  = '%s';" % (self.dbName, tableName)
         cursor = db.cursor()
@@ -53,7 +58,7 @@ class Mysql2docx(object):
         data = cursor.fetchall()
         columns=list()
         for column in data:
-            c=Column(column[0],column[1],column[2],column[3],self.getComment(column[4]))
+            c=Column(column[0],column[1],column[2],column[3],self.getComment(column[4]),column[5])
             columns.append(c)
         cursor.close()
         return columns
@@ -63,40 +68,73 @@ class Mysql2docx(object):
         print("dbHost:%s,dbUser:%s,dbPassword:%s,dbName:%s,dbPort:%d" % (dbHost, dbUser, dbPassword, dbName, dbPort))
         instance=Mysql2docx()
         instance.dbName=dbName
-        db = pymysql.connect(dbHost, dbUser, dbPassword, dbName, dbPort, charset="utf8")
+        # db = pymysql.connect(dbHost, dbUser, dbPassword, dbName, dbPort, charset="utf8")
+        db = pymysql.connect(host=dbHost, user=dbUser, password=dbPassword, database=dbName, port=dbPort, charset="utf8")
+
         tables = instance.getTables(db);
         for table in tables:
             tableName = table.name
             table.columns = instance.getColumns(db, tableName)
 
         document = Document()
-        p = document.add_paragraph()
-        paragraph_format = p.paragraph_format
-        run = p.add_run('数据库设计文档')
-        run.font.size = Pt(24)
-        paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
+
+        head2 = document.add_heading(level=2)
+        run = head2.add_run(u'物理表')
+        run.font.name=u'宋体'
+        run._element.rPr.rFonts.set(qn('w:eastAsia'), u'宋体')
+        run.font.size = Pt(14)
+        run.font.color.rgb = RGBColor(0, 0, 0)
+
+        # 段落后行距
+        # head2.paragraph_format.space_after = Pt(30)
+
 
         for table in tables:
             print("table:%s" % table)
-            document.add_heading("表%s[%s]" % (table.name, table.comment), 2)
-            t = document.add_table(rows=len(table.columns) + 1, cols=5)
+            # 三级标题
+            head3 = document.add_heading(level=3)
+            run = head3.add_run(u"表%s[%s]" % (table.name, table.comment))
+            run.font.name = u'宋体'
+            run._element.rPr.rFonts.set(qn('w:eastAsia'), u'宋体')
+            run.font.size = Pt(12)
+            run.font.color.rgb = RGBColor(0, 0, 0)
+            # 段落后行距
+            # head2.paragraph_format.space_after = Pt(30)
+
+# Light Grid
+# Light List Accent 1
+
+            t = document.add_table(rows=len(table.columns) + 1, cols=8, style='Medium Grid 3 Accent 1')
+
+            t.style.font.size = Pt(10.5)  # 字体大小15磅
+            t.style.font.name = u'宋体'
+            t.style._element.rPr.rFonts.set(qn('w:eastAsia'), u'宋体')
+            t.style.font.color.rgb = RGBColor(0, 0, 0)
+            t.style.paragraph_format.alignment = WD_PARAGRAPH_ALIGNMENT.LEFT  # 左对齐
+
             cells = t.rows[0].cells
-            cells[0].text = '字段名'
-            cells[1].text = '字段类型'
-            cells[2].text = '可以为空'
-            cells[3].text = '默认值'
-            cells[4].text = '注释'
+            cells[0].text = '#'
+            cells[1].text = '字段'
+            cells[2].text = '名称'
+            cells[3].text = '数据类型'
+            cells[4].text = '主键'
+            cells[5].text = '非空'
+            cells[6].text = '默认值'
+            cells[7].text = '备注说明'
             i = 0
             for column in table.columns:
                 i += 1
                 rowCells = t.rows[i].cells
-                rowCells[0].text = column.name
-                rowCells[1].text = column.type
-                rowCells[2].text = column.allowNull
+                rowCells[0].text = str(i)
+                rowCells[1].text = column.name
+                rowCells[2].text = column.comment
+                rowCells[3].text = column.type
+                rowCells[4].text = column.primaryKey
+                rowCells[5].text = column.allowNull
                 if column.defaultValue!=None:
-                    rowCells[3].text = column.defaultValue
-                rowCells[4].text = column.comment
+                    rowCells[6].text = column.defaultValue
+                # rowCells[7].text = column.comment
             #
-            document.add_page_break()
+            # document.add_page_break()
         #
         document.save(doc)
